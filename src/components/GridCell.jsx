@@ -1,7 +1,7 @@
 import React from 'react';
 import { useApp } from '../context/AppContext';
-import { calculateProgress, getOverdueCount, getWorkloadIntensity, getHeatmapColor, sortTodos, getPriorityColor } from '../utils/helpers';
-import { AlertCircle, Plus } from 'lucide-react';
+import { calculateProgress, getOverdueCount, getWorkloadIntensity, getHeatmapColor, sortTodos, getPriorityColor, isStaleTask, getDueDateColor } from '../utils/helpers';
+import { AlertCircle, Plus, Clock } from 'lucide-react';
 
 export default function GridCell({ projectId, company }) {
   const { getTodos, setSelectedCell, setFocusMode, addTodo } = useApp();
@@ -10,6 +10,7 @@ export default function GridCell({ projectId, company }) {
   const overdueCount = getOverdueCount(todos);
   const intensity = getWorkloadIntensity(todos);
   const heatmapColor = getHeatmapColor(intensity);
+  const staleCount = todos.filter(isStaleTask).length;
 
   const sortedTodos = sortTodos(todos, 'priority');
   const topTodo = sortedTodos.find(t => t.status !== 'complete');
@@ -46,6 +47,12 @@ export default function GridCell({ projectId, company }) {
               <span className="flex items-center space-x-1 text-xs text-red-600 dark:text-red-400">
                 <AlertCircle size={12} />
                 <span>{overdueCount}</span>
+              </span>
+            )}
+            {staleCount > 0 && (
+              <span className="flex items-center space-x-1 text-xs text-yellow-600 dark:text-yellow-400" title="Stale tasks (7+ days)">
+                <Clock size={12} />
+                <span>{staleCount}</span>
               </span>
             )}
           </div>

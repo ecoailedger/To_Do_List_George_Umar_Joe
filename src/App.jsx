@@ -3,6 +3,7 @@ import { AppProvider, useApp } from './context/AppContext';
 import Header from './components/Header';
 import MatrixView from './components/MatrixView';
 import Dashboard from './components/Dashboard';
+import MyFocusView from './components/MyFocusView';
 import TodoDetailPanel from './components/TodoDetailPanel';
 import FilterSidebar from './components/FilterSidebar';
 import ExportModal from './components/ExportModal';
@@ -81,7 +82,9 @@ function AppContent() {
         )}
 
         <main className="flex-1 overflow-hidden">
-          {viewMode === 'matrix' ? <MatrixView /> : <Dashboard />}
+          {viewMode === 'matrix' && <MatrixView />}
+          {viewMode === 'focus' && <MyFocusView />}
+          {viewMode === 'dashboard' && <Dashboard />}
         </main>
       </div>
 

@@ -145,3 +145,174 @@ export const debounce = (func, wait) => {
     timeout = setTimeout(later, wait);
   };
 };
+
+// Due date color coding
+export const getDueDateColor = (dueDate, status) => {
+  if (!dueDate || status === 'complete') return 'text-gray-500 dark:text-gray-400';
+
+  const date = new Date(dueDate);
+  const now = new Date();
+  const daysDiff = Math.ceil((date - now) / (1000 * 60 * 60 * 24));
+
+  if (isPast(date) && !isToday(date)) {
+    return 'text-red-600 dark:text-red-400 font-semibold'; // Overdue
+  }
+  if (isToday(date)) {
+    return 'text-amber-600 dark:text-amber-400 font-semibold'; // Due today
+  }
+  if (daysDiff <= 7) {
+    return 'text-blue-600 dark:text-blue-400'; // This week
+  }
+  return 'text-gray-500 dark:text-gray-400'; // Future
+};
+
+// Stale task detection (7+ days with no updates)
+export const isStaleTask = (todo) => {
+  if (!todo.updatedAt || todo.status === 'complete') return false;
+  const updatedDate = new Date(todo.updatedAt);
+  const daysSinceUpdate = Math.floor((new Date() - updatedDate) / (1000 * 60 * 60 * 24));
+  return daysSinceUpdate >= 7;
+};
+
+// Group tasks for "My Focus" view
+export const groupTasksByDueDate = (todos) => {
+  const groups = {
+    overdue: [],
+    today: [],
+    thisWeek: [],
+    later: [],
+  };
+
+  todos.forEach(todo => {
+    if (!todo.dueDate) {
+      groups.later.push(todo);
+      return;
+    }
+
+    const date = new Date(todo.dueDate);
+    const now = new Date();
+    const daysDiff = Math.ceil((date - now) / (1000 * 60 * 60 * 24));
+
+    if (isPast(date) && !isToday(date)) {
+      groups.overdue.push(todo);
+    } else if (isToday(date)) {
+      groups.today.push(todo);
+    } else if (daysDiff <= 7) {
+      groups.thisWeek.push(todo);
+    } else {
+      groups.later.push(todo);
+    }
+  });
+
+  return groups;
+};
+
+// Parse @mentions from text
+export const parseMentions = (text, teamMembers) => {
+  if (!text) return [];
+  const mentionRegex = /@(\w+)/g;
+  const matches = [...text.matchAll(mentionRegex)];
+  const mentions = [];
+
+  matches.forEach(match => {
+    const username = match[1].toLowerCase();
+    const member = teamMembers.find(m =>
+      m.name.toLowerCase() === username ||
+      m.initials.toLowerCase() === username
+    );
+    if (member) {
+      mentions.push(member.id);
+    }
+  });
+
+  return [...new Set(mentions)];
+};
+
+// Highlight @mentions in text
+export const highlightMentions = (text, teamMembers) => {
+  if (!text) return text;
+  let highlighted = text;
+
+  teamMembers.forEach(member => {
+    const regex = new RegExp(`@${member.name}\\b`, 'gi');
+    highlighted = highlighted.replace(regex, `<span class="mention">@${member.name}</span>`);
+  });
+
+  return highlighted;
+};
+
+// Generate standup report
+export const generateStandupReport = (data, userId) => {
+  const member = data.teamMembers.find(m => m.id === userId);
+  if (!member) return '';
+
+  const userTodos = [];
+  Object.entries(data.todos).forEach(([key, todos]) => {
+    userTodos.push(...todos.filter(t => t.assignee === userId));
+  });
+
+  const completed = userTodos.filter(t => t.status === 'complete');
+  const inProgress = userTodos.filter(t => t.status === 'in-progress');
+  const blocked = userTodos.filter(t => t.status === 'blocked');
+
+  let report = `## Standup Report - ${member.name}\n\n`;
+
+  report += `### ✅ Completed (${completed.length})\n`;
+  completed.forEach(t => {
+    report += `- ${t.title}\n`;
+  });
+
+  report += `\n### 🚧 In Progress (${inProgress.length})\n`;
+  inProgress.forEach(t => {
+    report += `- ${t.title}\n`;
+  });
+
+  if (blocked.length > 0) {
+    report += `\n### 🚫 Blocked (${blocked.length})\n`;
+    blocked.forEach(t => {
+      report += `- ${t.title}\n`;
+    });
+  }
+
+  return report;
+};
+
+// Generate weekly summary
+export const generateWeeklySummary = (data) => {
+  let summary = `## Weekly Summary\n\n`;
+
+  data.teamMembers.forEach(member => {
+    const userTodos = [];
+    Object.entries(data.todos).forEach(([key, todos]) => {
+      userTodos.push(...todos.filter(t => t.assignee === member.id));
+    });
+
+    const completed = userTodos.filter(t => t.status === 'complete').length;
+    const total = userTodos.length;
+    const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+    summary += `### ${member.name}\n`;
+    summary += `- Total Tasks: ${total}\n`;
+    summary += `- Completed: ${completed}\n`;
+    summary += `- Completion Rate: ${completionRate}%\n\n`;
+  });
+
+  // By region
+  summary += `### By Region\n`;
+  data.companies.forEach(company => {
+    let companyTasks = 0;
+    let companyCompleted = 0;
+
+    data.projects.forEach(project => {
+      const key = `${project.id}-${company}`;
+      const todos = data.todos[key] || [];
+      companyTasks += todos.length;
+      companyCompleted += todos.filter(t => t.status === 'complete').length;
+    });
+
+    const rate = companyTasks > 0 ? Math.round((companyCompleted / companyTasks) * 100) : 0;
+    summary += `- **${company}**: ${companyCompleted}/${companyTasks} (${rate}%)\n`;
+  });
+
+  return summary;
+};

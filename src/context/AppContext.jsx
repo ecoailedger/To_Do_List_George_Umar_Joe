@@ -244,6 +244,115 @@ export const AppProvider = ({ children }) => {
     setTimeout(() => setNotification(null), duration);
   };
 
+  // Current user management
+  const setCurrentUser = (userId) => {
+    setData(prev => ({ ...prev, currentUser: userId }));
+  };
+
+  // Activity log
+  const addActivity = (action, details) => {
+    const activity = {
+      id: generateId('activity'),
+      action,
+      details,
+      user: data.currentUser,
+      timestamp: new Date().toISOString(),
+    };
+    setData(prev => ({
+      ...prev,
+      activityLog: [activity, ...(prev.activityLog || [])].slice(0, 100), // Keep last 100 activities
+    }));
+  };
+
+  // Watch toggle
+  const toggleWatch = (projectId, company, todoId) => {
+    const key = getCellKey(projectId, company);
+    setData(prev => ({
+      ...prev,
+      todos: {
+        ...prev.todos,
+        [key]: (prev.todos[key] || []).map(todo => {
+          if (todo.id === todoId) {
+            const watchers = todo.watchers || [];
+            const isWatching = watchers.includes(data.currentUser);
+            return {
+              ...todo,
+              watchers: isWatching
+                ? watchers.filter(w => w !== data.currentUser)
+                : [...watchers, data.currentUser],
+              updatedAt: new Date().toISOString(),
+            };
+          }
+          return todo;
+        }),
+      },
+    }));
+  };
+
+  // Reassign with handoff note
+  const reassignTodo = (projectId, company, todoId, newAssignee, handoffNote) => {
+    const key = getCellKey(projectId, company);
+    const todo = (data.todos[key] || []).find(t => t.id === todoId);
+    if (!todo) return;
+
+    const oldAssignee = data.teamMembers.find(m => m.id === todo.assignee);
+    const newAssigneeMember = data.teamMembers.find(m => m.id === newAssignee);
+
+    // Add handoff note to comments
+    const handoffComment = {
+      id: generateId('comment'),
+      text: `Reassigned from ${oldAssignee?.name || 'Unassigned'} to ${newAssigneeMember?.name}${handoffNote ? `\n\nHandoff note: ${handoffNote}` : ''}`,
+      timestamp: new Date().toISOString(),
+      type: 'system',
+    };
+
+    updateTodo(projectId, company, todoId, {
+      assignee: newAssignee,
+      comments: [...(todo.comments || []), handoffComment],
+    });
+
+    // Remember last assignee for this region
+    setData(prev => ({
+      ...prev,
+      smartDefaults: {
+        ...prev.smartDefaults,
+        lastAssigneeByRegion: {
+          ...prev.smartDefaults?.lastAssigneeByRegion,
+          [company]: newAssignee,
+        },
+      },
+    }));
+
+    addActivity('reassigned', {
+      todoTitle: todo.title,
+      from: oldAssignee?.name,
+      to: newAssigneeMember?.name,
+      company,
+    });
+  };
+
+  // Get suggested assignee for region
+  const getSuggestedAssignee = (company) => {
+    return data.smartDefaults?.lastAssigneeByRegion?.[company] || null;
+  };
+
+  // Get suggested due date based on priority
+  const getSuggestedDueDate = (priority) => {
+    const today = new Date();
+    switch (priority) {
+      case 'critical':
+        return new Date(today.setDate(today.getDate() + 1)).toISOString().split('T')[0];
+      case 'high':
+        return new Date(today.setDate(today.getDate() + 3)).toISOString().split('T')[0];
+      case 'medium':
+        return new Date(today.setDate(today.getDate() + 7)).toISOString().split('T')[0];
+      case 'low':
+        return new Date(today.setDate(today.getDate() + 14)).toISOString().split('T')[0];
+      default:
+        return null;
+    }
+  };
+
   const value = {
     data,
     setData,
@@ -277,6 +386,12 @@ export const AppProvider = ({ children }) => {
     addTeamMember,
     bulkUpdateTodos,
     bulkDeleteTodos,
+    setCurrentUser,
+    addActivity,
+    toggleWatch,
+    reassignTodo,
+    getSuggestedAssignee,
+    getSuggestedDueDate,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
