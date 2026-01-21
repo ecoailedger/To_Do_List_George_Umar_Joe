@@ -2,6 +2,8 @@ import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { Sun, Moon, LayoutGrid, BarChart3, Filter, Download, Search, Plus, HelpCircle, User, FileText, Eye } from 'lucide-react';
 import { generateStandupReport } from '../utils/helpers';
+import SyncStatus from './SyncStatus';
+import AuthModal from './AuthModal';
 
 export default function Header({ onToggleFilters, onOpenExport, showFilters }) {
   const {
@@ -19,6 +21,7 @@ export default function Header({ onToggleFilters, onOpenExport, showFilters }) {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showStandupModal, setShowStandupModal] = useState(false);
   const [standupReport, setStandupReport] = useState('');
+  const [showAuthModal, setShowAuthModal] = useState(false);
 
   const isDark = data.settings.darkMode;
   const currentUser = data.teamMembers.find(m => m.id === data.currentUser);
@@ -179,6 +182,8 @@ export default function Header({ onToggleFilters, onOpenExport, showFilters }) {
           </div>
 
           {/* Action buttons */}
+          <SyncStatus onOpenAuth={() => setShowAuthModal(true)} />
+
           <button
             onClick={handleGenerateStandup}
             className="px-3 py-2 rounded-lg flex items-center space-x-2 bg-primary-600 hover:bg-primary-700 text-white transition-colors"
@@ -262,6 +267,17 @@ export default function Header({ onToggleFilters, onOpenExport, showFilters }) {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Auth Modal */}
+      {showAuthModal && (
+        <AuthModal
+          onClose={() => setShowAuthModal(false)}
+          onSuccess={async () => {
+            setShowAuthModal(false);
+            showNotification('Signed in successfully! Syncing data...', 'success');
+          }}
+        />
       )}
     </header>
   );

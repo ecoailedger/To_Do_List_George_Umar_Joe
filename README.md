@@ -10,6 +10,7 @@ A full-featured, interactive to-do list web application with a matrix/grid layou
 - **Rich Task Management**: Full-featured tasks with title, notes (markdown support), assignees, priority, due dates, status, tags, subtasks, comments, and time estimates
 - **Dark Mode**: Full dark mode support with system preference detection
 - **Data Persistence**: Auto-save to localStorage with data versioning
+- **☁️ Cloud Sync** (Optional): Backup and sync data across devices with Supabase integration
 
 ### Views
 - **Matrix View**: Main grid view with cell summaries and heatmap visualization

@@ -1,15 +1,16 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { X, Download, FileSpreadsheet, FileText, FileJson, Copy } from 'lucide-react';
+import { X, Download, FileSpreadsheet, FileText, FileJson, Copy, Upload } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { formatDate } from '../utils/helpers';
-import { exportData } from '../utils/storage';
+import { exportData, importData } from '../utils/storage';
 
 export default function ExportModal({ onClose }) {
   const { data, showNotification } = useApp();
   const [exportType, setExportType] = useState('excel');
+  const [showImport, setShowImport] = useState(false);
 
   const handleExport = () => {
     switch (exportType) {
@@ -223,6 +224,30 @@ export default function ExportModal({ onClose }) {
     onClose();
   };
 
+  const handleImport = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (!file.name.endsWith('.json')) {
+      showNotification('Please select a JSON file', 'error');
+      return;
+    }
+
+    try {
+      const text = await file.text();
+      const success = importData(text);
+
+      if (success) {
+        showNotification('Data imported successfully! Reloading...', 'success');
+        setTimeout(() => window.location.reload(), 1500);
+      } else {
+        showNotification('Invalid JSON file format', 'error');
+      }
+    } catch (err) {
+      showNotification('Failed to import file: ' + err.message, 'error');
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 animate-fade-in">
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md animate-scale-in">
@@ -324,14 +349,27 @@ export default function ExportModal({ onClose }) {
             </label>
           </div>
 
-          <div className="flex justify-end space-x-3 pt-4">
-            <button onClick={onClose} className="btn-secondary">
-              Cancel
-            </button>
-            <button onClick={handleExport} className="btn-primary">
-              <Download size={18} className="inline mr-2" />
-              Export
-            </button>
+          <div className="flex justify-between items-center pt-4">
+            <label htmlFor="json-import" className="btn-secondary cursor-pointer inline-flex items-center">
+              <Upload size={18} className="inline mr-2" />
+              Import JSON
+              <input
+                id="json-import"
+                type="file"
+                accept=".json,application/json"
+                onChange={handleImport}
+                className="hidden"
+              />
+            </label>
+            <div className="flex space-x-3">
+              <button onClick={onClose} className="btn-secondary">
+                Cancel
+              </button>
+              <button onClick={handleExport} className="btn-primary">
+                <Download size={18} className="inline mr-2" />
+                Export
+              </button>
+            </div>
           </div>
         </div>
       </div>
