@@ -15,11 +15,15 @@ export const defaultData = {
     // Format: 'proj-1-UK&I': [{ id, title, notes, assignee, priority, dueDate, status, tags, subtasks, comments, timeEstimate, createdAt, updatedAt }]
   },
   teamMembers: [
-    { id: 'tm-1', name: 'John Smith', initials: 'JS', color: '#3B82F6' },
-    { id: 'tm-2', name: 'Sarah Johnson', initials: 'SJ', color: '#10B981' },
-    { id: 'tm-3', name: 'Michael Chen', initials: 'MC', color: '#F59E0B' },
-    { id: 'tm-4', name: 'Emma Wilson', initials: 'EW', color: '#8B5CF6' },
+    { id: 'tm-umar', name: 'Umar', initials: 'U', color: '#3B82F6' },
+    { id: 'tm-george', name: 'George', initials: 'G', color: '#10B981' },
+    { id: 'tm-joe', name: 'Joe', initials: 'J', color: '#F59E0B' },
   ],
+  currentUser: 'tm-umar',
+  activityLog: [],
+  smartDefaults: {
+    lastAssigneeByRegion: {},
+  },
   templates: [],
   filters: [],
   settings: {

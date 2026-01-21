@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { X, Plus, Trash2, Calendar, User, Tag, Clock, MessageSquare, CheckSquare } from 'lucide-react';
+import { X, Plus, Trash2, Calendar, User, Tag, Clock, MessageSquare, CheckSquare, Eye, RefreshCw } from 'lucide-react';
 import { formatDate, getRelativeDate, getPriorityColor, getStatusColor, sortTodos } from '../utils/helpers';
 import ReactMarkdown from 'react-markdown';
 
@@ -121,12 +121,15 @@ export default function TodoDetailPanel({ projectId, company, onClose }) {
 }
 
 function TodoEditor({ todo, projectId, company, onUpdate, onDelete }) {
-  const { data } = useApp();
+  const { data, toggleWatch, reassignTodo, showNotification, getSuggestedAssignee, getSuggestedDueDate } = useApp();
   const [title, setTitle] = useState(todo.title);
   const [notes, setNotes] = useState(todo.notes || '');
   const [isEditingNotes, setIsEditingNotes] = useState(false);
   const [newComment, setNewComment] = useState('');
   const [newSubtask, setNewSubtask] = useState('');
+  const [showReassignModal, setShowReassignModal] = useState(false);
+  const [reassignTarget, setReassignTarget] = useState('');
+  const [handoffNote, setHandoffNote] = useState('');
 
   const handleUpdate = (field, value) => {
     onUpdate(projectId, company, todo.id, { [field]: value });
@@ -163,6 +166,24 @@ function TodoEditor({ todo, projectId, company, onUpdate, onDelete }) {
     handleUpdate('subtasks', subtasks);
   };
 
+  const isWatching = (todo.watchers || []).includes(data.currentUser);
+  const isAssignedToCurrentUser = todo.assignee === data.currentUser;
+
+  const handleReassign = () => {
+    if (reassignTarget && reassignTarget !== todo.assignee) {
+      reassignTodo(projectId, company, todo.id, reassignTarget, handoffNote);
+      showNotification('Task reassigned successfully', 'success');
+      setShowReassignModal(false);
+      setReassignTarget('');
+      setHandoffNote('');
+    }
+  };
+
+  const handleToggleWatch = () => {
+    toggleWatch(projectId, company, todo.id);
+    showNotification(isWatching ? 'Stopped watching task' : 'Now watching task', 'success');
+  };
+
   return (
     <div className="p-6 space-y-6">
       {/* Title */}
@@ -175,6 +196,29 @@ function TodoEditor({ todo, projectId, company, onUpdate, onDelete }) {
           className="text-2xl font-bold w-full bg-transparent border-none focus:outline-none text-gray-900 dark:text-white"
           placeholder="Task title..."
         />
+      </div>
+
+      {/* Watch and Reassign buttons */}
+      <div className="flex items-center space-x-2">
+        <button
+          onClick={handleToggleWatch}
+          className={`px-3 py-1.5 rounded-lg flex items-center space-x-2 text-sm transition-colors ${
+            isWatching
+              ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-400'
+              : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
+          }`}
+        >
+          <Eye size={16} />
+          <span>{isWatching ? 'Watching' : 'Watch'}</span>
+        </button>
+
+        <button
+          onClick={() => setShowReassignModal(true)}
+          className="px-3 py-1.5 rounded-lg flex items-center space-x-2 text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+        >
+          <RefreshCw size={16} />
+          <span>Reassign</span>
+        </button>
       </div>
 
       {/* Status and Priority */}
@@ -388,6 +432,75 @@ function TodoEditor({ todo, projectId, company, onUpdate, onDelete }) {
           <span>Delete Task</span>
         </button>
       </div>
+
+      {/* Reassign Modal */}
+      {showReassignModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 animate-fade-in">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md mx-4 animate-scale-in">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                Reassign Task
+              </h3>
+              <button
+                onClick={() => setShowReassignModal(false)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Reassign to
+                </label>
+                <select
+                  value={reassignTarget}
+                  onChange={(e) => setReassignTarget(e.target.value)}
+                  className="input-field"
+                >
+                  <option value="">Select team member...</option>
+                  {data.teamMembers
+                    .filter(m => m.id !== todo.assignee)
+                    .map(member => (
+                      <option key={member.id} value={member.id}>
+                        {member.name}
+                      </option>
+                    ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Handoff note (optional)
+                </label>
+                <textarea
+                  value={handoffNote}
+                  onChange={(e) => setHandoffNote(e.target.value)}
+                  placeholder="Add context for the new assignee..."
+                  className="input-field min-h-[100px]"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end space-x-3 p-6 border-t border-gray-200 dark:border-gray-700">
+              <button
+                onClick={() => setShowReassignModal(false)}
+                className="btn-secondary"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleReassign}
+                disabled={!reassignTarget}
+                className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Reassign
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
